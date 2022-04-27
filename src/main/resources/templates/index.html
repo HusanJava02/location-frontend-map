@@ -1,0 +1,102 @@
+<html>
+<head>
+    <title>Simple Map</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
+    <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script>
+        let i = 41.311081 ,  j =  69.240562;
+        let map;
+        const active_position = {};
+
+        function initMap() {
+            const myLatLng = {lat: i, lng: j};
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 8,
+                center: myLatLng,
+            });
+
+        }
+
+        function change_value(location) {
+            const latlng = new google.maps.LatLng(parseFloat(location.latitude),parseFloat(location.longitude));
+            active_position[parseInt(location.sender)].setPosition(latlng);
+        }
+
+        var socket = new SockJS('http://localhost:8080/websocket');
+        var stompClient = Stomp.over(socket);
+        stompClient.connect({}, onConnected, onError);
+
+        function onConnected() {
+            initMap()
+            stompClient.subscribe("/topic/navigation", onMessageReceived);
+        }
+
+        function onMessageReceived(payload) {
+            let parse = JSON.parse(payload.body);
+            console.log(parse, "parse")
+
+            for (let k = 0; k < parse.length; k++) {
+                if (active_position[parseInt(parse[k].sender)]) {
+                    change_value(parse[k]);
+                } else {
+                    createVal(parse[k])
+                    console.log("salom")
+                }
+            }
+        }
+
+        function createVal(location) {
+            console.log(location, "lok")
+            const myLatLng = {lat: parseFloat(location.latitude), lng: parseFloat(location.longitude)};
+            active_position[parseInt(location.sender)] = new google.maps.Marker({
+                position: myLatLng,
+                map,
+                title: `sender : ${location.sender}`,
+            });
+            console.log("active_position", active_position)
+        }
+
+
+        function onError(error) {
+            const para = document.createElement("h1");
+            para.style.color = "red";
+            para.innerText = "There was an error";
+            document.body.appendChild(para);
+        }
+
+        window.initMap = initMap;
+    </script>
+    <style>
+
+        /*
+     * Always set the map height explicitly to define the size of the div element
+     * that contains the map.
+     */
+        #map {
+            height: 100%;
+        }
+
+        /*
+         * Optional: Makes the sample page fill the window.
+         */
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+<div style="width: 1000px; height: 1000px; align-content: center; alignment: center" id="map"></div>
+<div style="text-align: center">
+</div>
+<script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHeaZPHWzcIVyaVSK7ivvo5W8ikZZua34"
+        defer
+></script>
+</body>
+</html>
